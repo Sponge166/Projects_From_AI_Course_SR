@@ -1,11 +1,17 @@
-use board::{Board};
+#![allow(dead_code)]
+use crate::board::{Board};
 
-struct Board_Analyzer{
-	board: Board
+pub struct BoardAnalyzer<'a>{
+	board: &'a Board,
+	internal_board: Board
 }
 
-impl Board_Analyzer{
-	fn new(board: Board) -> Board_Analyzer {
-		Board_Analyzer {board}
+impl BoardAnalyzer<'_>{
+	pub fn new(board: &Board) -> BoardAnalyzer {
+		BoardAnalyzer {
+			board, 
+			internal_board: Board::empty(board.grid.len(), board.grid[0].len())
+		}
 	}
+
 }
