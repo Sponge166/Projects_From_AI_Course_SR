@@ -1,9 +1,10 @@
 #![allow(dead_code)]
+use crate::board::point::Point;
 use std::rc::Rc;
 use Vec;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-
+pub mod point;
 pub mod board_analyzer;
 
 #[derive(Debug)]
@@ -49,7 +50,7 @@ impl Board{
 					let percept = occupant.get_percept_produced(); // Rc<dyn PassivePercept>
 					match percept.effect(){
 						Effect::NotNeighbors => tile.add(Rc::clone(&percept)),
-						Effect:: Neighbors => {
+						Effect::Neighbors => {
 							if i > 0{
 								self.grid[i-1][j].add(Rc::clone(&percept));
 							}
@@ -69,16 +70,20 @@ impl Board{
 		}
 	}
 
-	fn empty(x: usize, y: usize) -> Board{
+	fn empty(p: Point) -> Board{
 		let mut grid: Vec<Vec<Tile>> = Vec::new();
-		for _ in 0..x{
+		for _ in 0..p.x{
 			let mut temp: Vec<Tile> = Vec::new();
-			for _ in 0..y{
+			for _ in 0..p.y{
 				temp.push(Tile::empty());
 			}
 			grid.push(temp);
 		}
 		Board {grid}
+	}
+
+	pub fn dim(&self) -> Point {
+		Point{x: self.grid.len(), y: self.grid[0].len()}
 	}
 }
 
