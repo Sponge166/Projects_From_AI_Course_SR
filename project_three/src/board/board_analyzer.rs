@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::board::percepts::PassivePercept;
 use crate::board::{Board};
 use Vec;
 use crate::board::point::Point;
@@ -20,21 +21,21 @@ impl InternalBoard{
 		InternalBoard {grid}
 	}
 
-	fn neighbors(&self, p: Point) -> Vec<&mut InternalTile>{
+	fn neighbors(&mut self, p: Point) -> Vec<Point>{
 		let mut out = Vec::new();
 		let d = self.dim();
 
 		if p.x > 0 {
-			out.push(&mut self.grid[p.x-1][p.y]);
+			out.push(Point{ x: p.x-1, y: p.y});
 		}
 		if p.y > 0 {
-			out.push(&mut self.grid[p.x][p.y-1]);
+			out.push(Point{ x: p.x, y: p.y-1});
 		}
-		if p.x < d.x -1{
-			out.push(&mut self.grid[p.x+1][p.y]);
+		if p.x < d.x -1 {
+			out.push(Point{ x: p.x+1, y: p.y});		
 		}
 		if p.y < d.x -1 {
-			out.push(&mut self.grid[p.x][p.y+1]);
+			out.push(Point{ x: p.x, y: p.y+1});
 		}
 
 		out
@@ -56,6 +57,8 @@ impl InternalTile{
 	}
 }
 
+#[derive(Debug, Copy)]
+#[derive(Clone)]
 enum PossibleOccupant{
 	Pit,
 	Wampus
@@ -76,17 +79,23 @@ impl BoardAnalyzer<'_>{
 		out
 	}
 
-	fn observe(&mut self, p: Point){
-		let p = p.change_perspective(self.board.grid.len());
-		let mut int_tile = &mut self.internal_board.grid[p.x][p.y];
+	pub fn observe(&mut self, p: Point){
+		let int_tile = &mut self.internal_board.grid[p.x][p.y];
 		int_tile.seen = true;
 
 		let neighbors = self.internal_board.neighbors(p);
 
 		let pub_tile = &self.board.grid[p.x][p.y];
+
 		for percept in &pub_tile.passive_percepts {
-			for neighbor in neighbors{
-				neighbor.possible_occupants.push
+			let possible_occupant = match **percept {
+				PassivePercept::Breeze(_) => PossibleOccupant::Pit,
+				PassivePercept::Stink(_) => PossibleOccupant::Wampus,
+				_ => continue
+			};
+			for np in &neighbors{
+				let neighbor = &mut self.internal_board.grid[np.x][np.y];
+				neighbor.possible_occupants.push(possible_occupant);
 			}
 		}
 	}

@@ -1,15 +1,22 @@
 #![allow(dead_code)]
+use crate::board::percepts::PassivePerceptTrait;
+use crate::board::percepts::OccupantTrait;
+use crate::board::percepts::Tile;
+use crate::board::percepts::Effect;
 use crate::board::point::Point;
+
+use std::io::{BufReader, BufRead};
+use std::fs::File;
 use std::rc::Rc;
 use Vec;
-use std::fs::File;
-use std::io::{BufReader, BufRead};
+
 pub mod point;
+pub mod percepts;
 pub mod board_analyzer;
 
 #[derive(Debug)]
 pub struct Board {
-	grid: Vec<Vec<Tile>>
+	pub grid: Vec<Vec<Tile>>
 }
 
 impl Board{
@@ -47,7 +54,7 @@ impl Board{
 			for j in 0..self.grid[0].len(){
 				let tile = &mut self.grid[i][j];
 				if let Some(occupant) = &tile.occupant{
-					let percept = occupant.get_percept_produced(); // Rc<dyn PassivePercept>
+					let percept = occupant.get_percept_produced(); // Rc<PassivePercept>
 					match percept.effect(){
 						Effect::NotNeighbors => tile.add(Rc::clone(&percept)),
 						Effect::Neighbors => {
@@ -87,122 +94,3 @@ impl Board{
 	}
 }
 
-
-struct Tile{
-	occupant: Option<Box<dyn Occupant>>,
-	passive_percepts: Vec<Rc<dyn PassivePercept>>,
-	occupant_str: String
-}
-
-impl std::fmt::Debug for Tile{
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error>{
-		write!(f, "{}", self.occupant_str)
-	}
-}
-
-
-impl Tile{
-	fn empty() -> Tile{
-		Tile {occupant: None, passive_percepts: Vec::new(), occupant_str: String::from("X")}
-	}
-
-	fn from_char(c: &str) -> Option<Tile>{
-		Some(Tile { occupant: match c {
-			"P" => Some(Box::new(Pit(Breeze))),
-			"G" => Some(Box::new(Gold(Glitter))),
-			"W" => Some(Box::new(Wampus(Stink))),
-			_ => None
-		}, passive_percepts: Vec::new(),
-		occupant_str: String::from(c)})
-	}
-
-	fn add(&mut self, percept: Rc<dyn PassivePercept>){
-		self.passive_percepts.push(percept);
-	}
-}
-
-trait Occupant {
-	fn get_percept_produced(&self) -> Rc<dyn PassivePercept>;
-}
-
-trait PassivePercept: std::fmt::Debug{
-	fn describe(&self) -> String;
-	fn effect(&self) -> Effect;
-}
-
-enum Effect{
-	Neighbors,
-	NotNeighbors
-}
-
-
-// percept and occupant defs
-
-
-#[derive(Debug, Copy, Clone)]
-struct Stink;
-
-impl PassivePercept for Stink{
-	fn describe(&self) -> String{
-		String::from("You smell something foul")
-	}
-
-	fn effect(&self) -> Effect{
-		Effect::Neighbors
-	}
-}
-
-#[derive(Debug)]
-struct Wampus(Stink);
-
-impl Occupant for Wampus{
-	fn get_percept_produced(&self) -> Rc<dyn PassivePercept>{
-		Rc::new(self.0)
-	}
-}
-
-
-#[derive(Debug, Copy, Clone)]
-struct Glitter;
-
-impl PassivePercept for Glitter{
-	fn describe(&self) -> String{
-		String::from("You see a bright Gitter! You've found the Gold")
-	}
-
-	fn effect(&self) -> Effect{
-		Effect::NotNeighbors
-	}
-}
-
-#[derive(Debug)]
-struct Gold(Glitter);
-
-impl Occupant for Gold{
-	fn get_percept_produced(&self) -> Rc<dyn PassivePercept>{
-		Rc::new(self.0)
-	}
-}
-
-
-#[derive(Debug, Copy, Clone)]
-struct Breeze;
-
-impl PassivePercept for Breeze{
-	fn describe(&self) -> String{
-		String::from("You feel a strong Breeze ")
-	}
-
-	fn effect(&self) -> Effect{
-		Effect::Neighbors
-	}
-}
-
-#[derive(Debug)]
-struct Pit(Breeze);
-
-impl Occupant for Pit{
-	fn get_percept_produced(&self) -> Rc<dyn PassivePercept>{
-		Rc::new(self.0)
-	}
-}
