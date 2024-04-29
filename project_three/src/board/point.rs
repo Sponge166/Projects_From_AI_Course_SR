@@ -1,4 +1,5 @@
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq)]
+#[derive(PartialEq)]
 pub struct Point{
 	pub x: usize,
 	pub y: usize
@@ -7,8 +8,8 @@ pub struct Point{
 impl Point{
 	pub fn change_perspective(&self, rows: usize) -> Self {
 		Point {
-			x: self.x.abs_diff(rows),
-			y: self.y
+			x: self.y.abs_diff(rows-1),
+			y: self.x
 		}
 	}
 }

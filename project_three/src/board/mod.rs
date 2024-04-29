@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use crate::board::percepts::Occupant;
 use crate::board::percepts::PassivePerceptTrait;
 use crate::board::percepts::OccupantTrait;
 use crate::board::percepts::Tile;
@@ -91,6 +92,25 @@ impl Board{
 
 	pub fn dim(&self) -> Point {
 		Point{x: self.grid.len(), y: self.grid[0].len()}
+	}
+
+	pub fn wincon(&self, p: Point) -> bool {
+		if let Some(Occupant::Gold(_)) = self.grid[p.x][p.y].occupant {
+			return true;
+		} 
+		false
+	}
+	pub fn wampus_losecon(&self, p: Point) -> bool {
+		if let Some(Occupant::Wampus(_)) = self.grid[p.x][p.y].occupant {
+			return true;
+		} 
+		false
+	}
+	pub fn pit_losecon(&self, p: Point) -> bool {
+		if let Some(Occupant::Pit(_)) = self.grid[p.x][p.y].occupant {
+			return true;
+		} 
+		false
 	}
 }
 

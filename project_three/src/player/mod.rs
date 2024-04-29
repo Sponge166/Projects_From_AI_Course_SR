@@ -1,3 +1,5 @@
+use crate::board::percepts::PassivePercept;
+use crate::board::percepts::PassivePerceptTrait;
 use crate::board::Board;
 use crate::board::point::Point;
 
@@ -11,15 +13,15 @@ enum Direction {
 
 #[derive(Debug)]
 pub struct Player<'a> {
-	pos: Point,
-	board: &'a Board,
+	pub pos: Point,
+	pub board: &'a Board,
 	dir: Direction,
 	arrows: u8
 }
 
 impl Player<'_> {
 	pub fn new(b: &Board) -> Player {
-		Player{pos: Point{x:1,y:1}, board: b, dir: Direction::East, arrows: 1u8}
+		Player{pos: Point{x:0,y:0}, board: b, dir: Direction::East, arrows: 1u8}
 	}
 
 	pub fn turn_left(&mut self) {
@@ -80,9 +82,46 @@ impl Player<'_> {
 	pub fn shoot(&mut self) { 
 		if self.arrows > 0{
 			self.arrows -= 1;
+			todo!();
 		}
 		else{
 			println!("Sorry no arrows left");
+		}
+	}
+
+	pub fn observe(&self) {
+		print!("You are facing ");
+
+		match self.dir{
+			Direction::West => print!("west"),
+			Direction::North => print!("north"),
+			Direction::East => print!("east"),
+			Direction::South => print!("south"),
+		}
+		println!(" in room ({}, {})", self.pos.x+1, self.pos.y+1);
+
+		let p = self.pos.change_perspective(self.board.grid.len());
+
+		let tile = &self.board.grid[p.x][p.y];
+
+		let mut breeze = false;
+		let mut stink = false;
+		for percept in &tile.passive_percepts{
+			match **percept{
+				PassivePercept::Stink(_) => {
+					if !stink {
+						println!("{}", percept.describe());
+					}
+					stink = true;
+				},
+				PassivePercept::Breeze(_) => {
+					if !breeze {
+						println!("{}", percept.describe());
+					}
+					breeze = true;
+				},
+				_ => continue
+			};
 		}
 	}
 }
