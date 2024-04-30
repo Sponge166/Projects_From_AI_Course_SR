@@ -1,3 +1,4 @@
+use crate::board::percepts::Occupant;
 use crate::board::percepts::PassivePercept;
 use crate::board::percepts::PassivePerceptTrait;
 use crate::board::Board;
@@ -20,7 +21,7 @@ pub struct Player<'a> {
 }
 
 impl Player<'_> {
-	pub fn new(b: &Board) -> Player {
+	pub fn new(b: & Board) -> Player {
 		Player{pos: Point{x:0,y:0}, board: b, dir: Direction::East, arrows: 1u8}
 	}
 
@@ -82,10 +83,36 @@ impl Player<'_> {
 	pub fn shoot(&mut self) { 
 		if self.arrows > 0{
 			self.arrows -= 1;
-			todo!();
+			
+			match self.dir {
+				Direction::South => self.shoot_dir(|p: &mut Point| p.x+=1),
+				Direction::North => self.shoot_dir(|p: &mut Point| if p.x != 0 {p.x-=1}),
+				Direction::East => self.shoot_dir(|p: &mut Point| p.y+=1),
+				Direction::West => self.shoot_dir(|p: &mut Point| if p.y != 0 {p.y-=1})
+			};
 		}
 		else{
 			println!("Sorry no arrows left");
+		}
+	}
+
+	fn shoot_dir<F:FnMut(&mut Point)>(&self, mut func: F) {
+		let mut p_copy = self.pos.board_perspective(self.board.grid.len());
+		while p_copy.x < self.board.grid.len() && p_copy.y < self.board.grid.len(){
+			// while in bounds check if wampus is in this tile
+			let tile = & self.board.grid[p_copy.x][p_copy.y];
+			if let Some(Occupant::Wampus(wamp)) = & tile.occupant{
+				wamp.frag_it();
+				println!("ARRGH the wampus screams out in pain. The cave is now safe from the Wampus.");
+				return;
+			}
+
+			match self.dir {
+				Direction::West if p_copy.y == 0 => break,
+				Direction::North if p_copy.x == 0 => break,
+				_ => ()
+			}
+			func(&mut p_copy);
 		}
 	}
 
@@ -100,7 +127,7 @@ impl Player<'_> {
 		}
 		println!(" in room ({}, {})", self.pos.x+1, self.pos.y+1);
 
-		let p = self.pos.change_perspective(self.board.grid.len());
+		let p = self.pos.board_perspective(self.board.grid.len());
 
 		let tile = &self.board.grid[p.x][p.y];
 

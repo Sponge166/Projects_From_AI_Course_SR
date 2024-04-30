@@ -101,8 +101,8 @@ impl Board{
 		false
 	}
 	pub fn wampus_losecon(&self, p: Point) -> bool {
-		if let Some(Occupant::Wampus(_)) = self.grid[p.x][p.y].occupant {
-			return true;
+		if let Some(Occupant::Wampus(x)) = &self.grid[p.x][p.y].occupant {
+			return x.is_alive();
 		} 
 		false
 	}

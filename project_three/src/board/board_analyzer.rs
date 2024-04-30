@@ -1,9 +1,11 @@
 #![allow(dead_code)]
+use crate::board::Occupant;
 use crate::board::percepts::PassivePercept;
 use crate::board::{Board};
 use Vec;
 use crate::board::point::Point;
 
+#[derive(Debug)]
 struct InternalBoard{
 	grid: Vec<Vec<InternalTile>>
 }
@@ -46,12 +48,13 @@ impl InternalBoard{
 	}
 }
 
+#[derive(Debug)]
 struct InternalTile{
 	seen: bool, // true if tile has been visited
-	empty: bool, // this will be true if we either visited the tile and there were no occupants 
+	empty: Option<bool>, // this will be true if we either visited the tile and there were no occupants 
 	// or we visited a nieghboring tile and there were no percepts present 
-	m_pit: bool, // same as m_wampus except for pits and breezes
-	m_wampus: bool, // used to respresent the tile state of maybe wampus? 
+	m_pit: Option<bool>, // same as m_wampus except for pits and breezes
+	m_wampus: Option<bool>, // used to respresent the tile state of maybe wampus? 
 	// when a given tile was next to stink percept 
 	// but we lack the necessary information to be certain it contains a wampus 
 	definite_occupant: Option<PossibleOccupant>,
@@ -59,7 +62,7 @@ struct InternalTile{
 
 impl InternalTile{
 	fn empty() -> InternalTile {
-		InternalTile {seen: false, empty: false, m_pit: false, m_wampus: false, definite_occupant: None,}
+		InternalTile {seen: false, empty: None, m_pit: None, m_wampus: None, definite_occupant: None,}
 	}
 }
 
@@ -70,6 +73,7 @@ enum PossibleOccupant{
 	Wampus
 }
 
+#[derive(Debug)]
 pub struct BoardAnalyzer<'a>{
 	board: &'a Board,
 	internal_board: InternalBoard
@@ -81,85 +85,122 @@ impl BoardAnalyzer<'_>{
 			board, 
 			internal_board: InternalBoard::empty(board.dim())
 		};
-		out.observe(Point{x: 0, y: 0}.change_perspective(board.grid.len()));
+		out.observe(Point{x: 0, y: 0}.board_perspective(board.grid.len()));
 		out
 	}
 
 	pub fn observe(&mut self, p: Point){
+	
+		let neighbors = self.internal_board.neighbors(p);
+
 		let int_tile = &mut self.internal_board.grid[p.x][p.y];
 
 		if int_tile.seen {
 			return ();
 		}
 
-		int_tile.seen = true;
-		int_tile.empty = true;
-
-		let neighbors = self.internal_board.neighbors(p);
-
 		let pub_tile = &self.board.grid[p.x][p.y];
+
+		int_tile.seen = true;
+		if let Some(Occupant::Wampus(_)) = self.board.grid[p.x][p.y].occupant{
+			int_tile.empty = Some(false);
+		}
+		else{
+			int_tile.empty = Some(true);
+		}
 
 		if pub_tile.passive_percepts.len() == 0 {
 			// neighbors are empty
 			for np in &neighbors{
 				let neighbor = &mut self.internal_board.grid[np.x][np.y];
-				neighbor.empty = true;
+				neighbor.empty = Some(true);
+				neighbor.m_wampus = Some(false);
+				neighbor.m_pit = Some(false);
 			}
 
 			return ();
 		}
+		
+		let mut bp = false;
+		let mut sp = false;
 
 		for percept in &pub_tile.passive_percepts {
 			let func = match **percept {
-				PassivePercept::Breeze(_) => |n: &mut InternalTile| n.m_pit = true,
-				PassivePercept::Stink(_) => |n: &mut InternalTile| n.m_wampus = true,
+				PassivePercept::Breeze(_) => {
+					bp = true;
+					|n: &mut InternalTile| {if let None = n.m_pit {n.m_pit = Some(true);}}
+				},
+				PassivePercept::Stink(_) => {
+					sp = true;
+					|n: &mut InternalTile| {if let None = n.m_wampus {n.m_wampus = Some(true);}}
+				},
 				_ => continue
 			};
 
 			for np in &neighbors{
 				let neighbor = &mut self.internal_board.grid[np.x][np.y];
 				
-				if !neighbor.empty{
+				if let None = neighbor.empty{
 					func(neighbor);
 				}
 			}
 		}
+
+		for np in &neighbors{
+			let neighbor = &mut self.internal_board.grid[np.x][np.y];
+			let npp = np.player_perspective(self.board.grid.len());
+			if let None = neighbor.empty{
+				if !bp { 
+					if let Some(true) = neighbor.m_pit{
+						neighbor.empty = Some(true);
+						println!("Room ({}, {}) is safe", npp.x+1, npp.y+1);
+					}
+					neighbor.m_pit = Some(false)
+				}
+				if !sp { 
+					if let Some(true) = neighbor.m_wampus{
+						neighbor.empty = Some(true);
+						println!("Room ({}, {}) is safe", npp.x+1, npp.y+1);
+					}
+					neighbor.m_wampus = Some(false)
+				}
+			}
+		}
+
 	}
 
 	pub fn advise(&mut self, p: Point) {
 		let new_defs = self.analyze();
 
 		let neighbors = self.internal_board.neighbors(p);
-		let p_tile = &self.internal_board.grid[p.x][p.y];
 
 		for point in neighbors{
 			let neighbor = &self.internal_board.grid[point.x][point.y];
 
-			if neighbor.empty {
+			if let Some(true) = neighbor.empty {
 				continue;
 			}
-			let pp = point.change_perspective(self.internal_board.grid.len());
+
+			let pp = point.player_perspective(self.internal_board.grid.len());
 			if let Some(x) = neighbor.definite_occupant {
 				if new_defs.contains(&point) {continue;} // dont print twice
 				match x {
 					PossibleOccupant::Wampus => {
-						println!("Room ({}, {}) contains the Wampus", pp.x, pp.y);
+						println!("Room ({}, {}) contains the Wampus", pp.x+1, pp.y+1);
 					},
 					PossibleOccupant::Pit => {
-						println!("Room ({}, {}) contains a Pit", pp.x, pp.y);
+						println!("Room ({}, {}) contains a Pit", pp.x+1, pp.y+1);
 					}
 				}
 			}
-			else {
-				if p_tile.m_wampus {
-					println!("Room ({}, {}) MAY contain the Wampus", pp.x, pp.y);
+			else{
+				if let Some(true) = neighbor.m_wampus {
+					println!("Room ({}, {}) MAY contain the Wampus", pp.x+1, pp.y+1);
 				}
-				if p_tile.m_pit {
-					println!("Room ({}, {}) MAY contain a Pit", pp.x, pp.y);
+				if let Some(true) = neighbor.m_pit {
+					println!("Room ({}, {}) MAY contain a Pit", pp.x+1, pp.y+1);
 				}
 			}
-
-
 		}
 	}
 
@@ -170,30 +211,35 @@ impl BoardAnalyzer<'_>{
 			for j in 0..self.internal_board.grid[0].len(){
 				let p = Point {x: i, y: j};
 
-				let m_wampus: bool;
-				let m_pit: bool;
+				let m_wampus: Option<bool>;
+				let m_pit: Option<bool>;
 
 				{ // skip conditions
 					let t = &self.internal_board.grid[p.x][p.y];
-					if t.empty || t.seen { continue; }
-					if !t.m_wampus && !t.m_pit { continue; }
+					if let Some(true) = t.empty { continue; }
+					if t.seen {continue;}
+					if let (Some(false), Some(false)) = (t.m_wampus, t.m_pit) { continue; }
 					if let Some(_) = t.definite_occupant { continue; }
 
 					m_wampus = t.m_wampus;
 					m_pit = t.m_pit;
 				}
 
-				if m_wampus && self.is_def(p, PossibleOccupant::Wampus) {
-					out.push(p);
-					let pp = p.change_perspective(self.internal_board.grid.len());
-					println!("Room ({}, {}) contains the Wampus", pp.x, pp.y);
-					self.internal_board.grid[p.x][p.y].definite_occupant = Some(PossibleOccupant::Wampus);
+				if let Some(true) = m_wampus { 
+					if self.is_def(p, PossibleOccupant::Wampus) {
+						out.push(p);
+						let pp = p.player_perspective(self.internal_board.grid.len());
+						println!("Room ({}, {}) contains the Wampus", pp.x+1, pp.y+1);
+						self.internal_board.grid[p.x][p.y].definite_occupant = Some(PossibleOccupant::Wampus);
+					}
 				}
-				if m_pit && self.is_def(p, PossibleOccupant::Pit){
-					out.push(p);
-					let pp = p.change_perspective(self.internal_board.grid.len());
-					println!("Room ({}, {}) contains a Pit", pp.x, pp.y);
-					self.internal_board.grid[p.x][p.y].definite_occupant = Some(PossibleOccupant::Pit);
+				if let Some(true) = m_pit {
+					if self.is_def(p, PossibleOccupant::Pit){
+						out.push(p);
+						let pp = p.player_perspective(self.internal_board.grid.len());
+						println!("Room ({}, {}) contains a Pit", pp.x+1, pp.y+1);
+						self.internal_board.grid[p.x][p.y].definite_occupant = Some(PossibleOccupant::Pit);
+					}
 				}
 			}
 		}
@@ -208,6 +254,7 @@ impl BoardAnalyzer<'_>{
 		let percept_neighbors = self.internal_board.neighbors(p);
 
 		for pn in percept_neighbors {
+			// println!("treating ({}, {}) as potential source of ({}, {})", p.x, p.y, pn.x, pn.y);
 			if self.can_only_come_from(pn, p, po){
 				return true;
 			}
@@ -217,6 +264,16 @@ impl BoardAnalyzer<'_>{
 	}
 
 	fn can_only_come_from(&mut self, percept_neighbor: Point, p: Point, po: PossibleOccupant) -> bool{
+		{
+			let pn_tile = &self.internal_board.grid[percept_neighbor.x][percept_neighbor.y];
+			if !pn_tile.seen {
+				// println!("ignored: UNSEEN");
+				return false;
+			} 
+			// if this tile is unseen the player doesnt even know if it contains the percept we care about
+			// and if the player doesnt know neither does board_analyzer.
+		}
+
 		let pn_neighbors = self.internal_board.neighbors(percept_neighbor);
 
 		let func = match po {
@@ -228,9 +285,8 @@ impl BoardAnalyzer<'_>{
 			},
 		};
 
-
-		for pnn in pn_neighbors {
-			if pnn == p {continue;}
+		for pnn in &pn_neighbors {
+			if *pnn == p {continue;}
 			let tile = &self.internal_board.grid[pnn.x][pnn.y];
 
 			if func(tile) {return false;}
@@ -240,14 +296,29 @@ impl BoardAnalyzer<'_>{
 				PossibleOccupant::Pit => tile.m_pit
 			};
 
-			println!("({}, {}) empty = {}", pnn.x, pnn.y, tile.empty);
+			// let st = match po {
+			// 	PossibleOccupant::Wampus => "wampus",
+			// 	PossibleOccupant::Pit => "pit"
+			// };
 
-			if !tile.empty && m_po {
+			// println!("({}, {}) empty = {:?}, m_{st} = {:?}", pnn.x, pnn.y, tile.empty, m_po);
+
+			if let (None, Some(true)) = (tile.empty, m_po) {
 				return false;
 			}
 		}
 
-		println!("supposedly ({}, {}) passed can_only_come_from", percept_neighbor.x, percept_neighbor.y);
+		for pnn in &pn_neighbors {
+			if *pnn == p {continue;}
+			let tile = &mut self.internal_board.grid[pnn.x][pnn.y];
+			match po {
+				PossibleOccupant::Wampus => tile.m_wampus = Some(false),
+				PossibleOccupant::Pit => tile.m_pit = Some(false)
+			};
+
+		}
+
+		// println!("supposedly ({}, {}) passed can_only_come_from", percept_neighbor.x, percept_neighbor.y);
 
 		true
 	}

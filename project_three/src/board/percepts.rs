@@ -1,3 +1,4 @@
+use core::cell::RefCell;
 use std::rc::Rc;
 
 pub struct Tile{
@@ -21,7 +22,7 @@ impl Tile{
 		Some(Tile { occupant: match c {
 			"P" => Some(Occupant::Pit(Pit(PassivePercept::Breeze(Breeze)))),
 			"G" => Some(Occupant::Gold(Gold(PassivePercept::Glitter(Glitter)))),
-			"W" => Some(Occupant::Wampus(Wampus(PassivePercept::Stink(Stink)))),
+			"W" => Some(Occupant::Wampus(Wampus(PassivePercept::Stink(Stink), RefCell::new(true)))),
 			_ => None
 		}, passive_percepts: Vec::new()})
 	}
@@ -105,11 +106,22 @@ impl PassivePerceptTrait for Stink{
 }
 
 #[derive(Debug)]
-pub struct Wampus(PassivePercept);
+pub struct Wampus(PassivePercept, RefCell<bool>);
 
 impl OccupantTrait for Wampus{
 	fn get_percept_produced(&self) -> Rc<PassivePercept>{
 		Rc::new(self.0)
+	}
+}
+
+impl Wampus {
+	pub fn is_alive(&self) -> bool{
+		if *self.1.borrow(){ return true; }
+		false
+	}
+
+	pub fn frag_it(&self) {
+		self.1.swap(&RefCell::new(false));
 	}
 }
 
