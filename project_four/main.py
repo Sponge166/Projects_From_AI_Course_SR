@@ -6,17 +6,19 @@ class Classification(Enum):
 	NotAboutCats = 2
 
 class PercentClassification:
+	string: str
 	aboutcats: float
 	notaboutcats: float
 	final_classification: Classification
 
-	def __init__(self, ac, nac, fc):
+	def __init__(self, string, ac, nac, fc):
+		self.string = string
 		self.aboutcats = ac
 		self.notaboutcats = nac
 		self.final_classification = fc
 
 	def __str__(self):
-		return f"AboutCats: {self.aboutcats} NotAboutCats: {self.notaboutcats} Classification: {self.final_classification}"
+		return f"================\n{self.string}\n================\nAboutCats: {self.aboutcats} NotAboutCats: {self.notaboutcats} Classification: {self.final_classification}\n"
 
 class NaiveBayesClassifier:
 	knowledge_base: dict[str, Classification]
@@ -33,7 +35,7 @@ class NaiveBayesClassifier:
 		p_notaboutcats = self.probability_of_classification(Classification.NotAboutCats) \
 			* self.probability_of_words(string.split(), Classification.NotAboutCats)
 		fc = Classification.AboutCats if p_aboutcats > p_notaboutcats else Classification.NotAboutCats
-		out = PercentClassification(p_aboutcats, p_notaboutcats, fc)
+		out = PercentClassification(string, p_aboutcats, p_notaboutcats, fc)
 		return out
 
 	def probability_of_classification(self, c: Classification):
@@ -86,13 +88,8 @@ def main():
 
 	print(nbc.classify("my cat tom slays"))
 	print(nbc.classify("my dog is a dog"))
-	print(nbc.classify("A cat’s nutritional requirements change through different stages of \
-		life. These stages include kittenhood, adulthood, pregnancy, and lactation. \
-		The nutritional claim on the cat food label should state the stage of a cat’s \
-		life cycle"))
-	print(nbc.classify("Our dogs love meats and fats, but overly rich foods don’t \
-		always love them back. Overindulging can irritate your dog’s pancreas and \
-		cause pancreatitis."))
+	print(nbc.classify("A cat’s nutritional requirements change through different stages of life. These stages include kittenhood, adulthood, pregnancy, and lactation. The nutritional claim on the cat food label should state the stage of a cat’s life cycle"))
+	print(nbc.classify("Our dogs love meats and fats, but overly rich foods don’t always love them back. Overindulging can irritate your dog’s pancreas and cause pancreatitis."))
 	print(nbc.classify("Here is some text comepletely unrelated lets see what the nbc says"))
 
 if __name__ == "__main__":
