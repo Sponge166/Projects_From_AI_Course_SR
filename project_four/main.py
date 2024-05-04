@@ -1,4 +1,5 @@
 from enum import Enum
+import os
 
 class Classification(Enum):
 	AboutCats = 1
@@ -43,13 +44,14 @@ class NaiveBayesClassifier:
 
 		for word in words:
 			a = sum([1 for key, cl in self.knowledge_base.items() if cl == c and word in key])
-			prob = a / len(self.knowledge_base)
+			# print(f"number {c} classifications: {sum([1 for key, cl in self.knowledge_base.items() if cl == c])}")
+			prob = a / sum([1 for key, cl in self.knowledge_base.items() if cl == c])
 			if prob == 0:
 				prob = self.m_estimate(a, word, c)
 
-			print(f"Word: '{word}' has {prob*100}% chance that it is {c}")
+			# print(f"Word: '{word}' has {prob*100}% chance that it is {c}")
 			summ *= prob
-			print(summ)
+			# print(summ)
 
 		return summ
 
@@ -64,23 +66,34 @@ def get_training_data(nac, nnac):
 	out = []
 	for i in range(nac):
 		with open(f"training_data\\aboutcats\\file{i}.txt", "r") as f:
-			out.append((str(f.read), Classification.AboutCats))
+			# print(i)
+			out.append((str(f.read()), Classification.AboutCats))
 	for i in range(nnac):
+		# print(i)
 		with open(f"training_data\\notaboutcats\\file{i}.txt", "r") as f:
-			out.append((str(f.read), Classification.NotAboutCats))
+			out.append((str(f.read()), Classification.NotAboutCats))
 	return out
 
 def main():
 	nbc = NaiveBayesClassifier()
+	aboutcat_files = len(os.listdir("training_data\\aboutcats\\"))
+	notaboutcat_files = len(os.listdir("training_data\\notaboutcats\\"))
 
-	training_data = get_training_data(2,2)
+	training_data = get_training_data(aboutcat_files, notaboutcat_files)
 
 	for string, cl in training_data:
 		nbc.train(string, cl)
 
 	print(nbc.classify("my cat tom slays"))
 	print(nbc.classify("my dog is a dog"))
-
+	print(nbc.classify("A cat’s nutritional requirements change through different stages of \
+		life. These stages include kittenhood, adulthood, pregnancy, and lactation. \
+		The nutritional claim on the cat food label should state the stage of a cat’s \
+		life cycle"))
+	print(nbc.classify("Our dogs love meats and fats, but overly rich foods don’t \
+		always love them back. Overindulging can irritate your dog’s pancreas and \
+		cause pancreatitis."))
+	print(nbc.classify("Here is some text comepletely unrelated lets see what the nbc says"))
 
 if __name__ == "__main__":
 	main()
