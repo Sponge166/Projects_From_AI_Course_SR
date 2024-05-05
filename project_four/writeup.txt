@@ -1,0 +1,12 @@
+After reading through the provided reading on Naive Bayes Classifiers I knew some of the reqierments of my personal implementation.
+
+I would be working with blocks of text classified on the presense of a few specific words relating to cats like (cat, kitten, cats, feline, etc.)
+
+The example in the reading had ordered data where as in my case the data is unordered. (i.e. it does not matter where "cat" shows up in a block of text for it to be about cats)
+
+I also knew I could not possibly train on all words so I would have a lot of instances where im trying to classify a block of text containing words my Classifier had never seen before. To address this I used m-estiamtes to estimate P(x|Classification) such that x is a word unseen by our Classifier.
+
+To classify your own text run
+py main.py [file_name]
+
+note: on your machine py may not work, also try python and python3

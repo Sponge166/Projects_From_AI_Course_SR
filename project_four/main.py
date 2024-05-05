@@ -1,5 +1,6 @@
 from enum import Enum
 import os
+import sys
 
 class Classification(Enum):
 	AboutCats = 1
@@ -86,11 +87,19 @@ def main():
 	for string, cl in training_data:
 		nbc.train(string, cl)
 
-	print(nbc.classify("my cat tom slays"))
-	print(nbc.classify("my dog is a dog"))
-	print(nbc.classify("A cat’s nutritional requirements change through different stages of life. These stages include kittenhood, adulthood, pregnancy, and lactation. The nutritional claim on the cat food label should state the stage of a cat’s life cycle"))
-	print(nbc.classify("Our dogs love meats and fats, but overly rich foods don’t always love them back. Overindulging can irritate your dog’s pancreas and cause pancreatitis."))
-	print(nbc.classify("Here is some text comepletely unrelated lets see what the nbc says"))
+	if len(sys.argv) == 2:
+		with open(sys.argv[1], 'r') as f:
+			text = str(f.read())
+	else:
+		text = None
 
+	if text:
+		print(nbc.classify(text))
+	else:
+		print(nbc.classify("my cat tom slays"))
+		print(nbc.classify("my dog is a dog"))
+		print(nbc.classify("A cat’s nutritional requirements change through different stages of life. These stages include kittenhood, adulthood, pregnancy, and lactation. The nutritional claim on the cat food label should state the stage of a cat’s life cycle"))
+		print(nbc.classify("Our dogs love meats and fats, but overly rich foods don’t always love them back. Overindulging can irritate your dog’s pancreas and cause pancreatitis."))
+		
 if __name__ == "__main__":
 	main()
